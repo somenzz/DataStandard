@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>数据标准</title>
+
+{% load static %}
+
+
+<!-- import CSS -->
+<link rel="stylesheet" href="{% static '/element-ui/lib/theme-chalk/index.css' %}">
+<!-- import Vue before Element -->
+<script src="{% static 'vue/js/vue.min.js' %}"></script>
+<!-- import JavaScript -->
+<script src="{% static 'element-ui/lib/index.js' %}"></script>
+<script src="{% static 'vue/js/axios.min.js' %}"></script>
+
+
+
+</head>
+<body>
+
+
+<div id="app" style = "width:80%;margin-left:8%">
+<title>标准化工具</title>
+<template>
+
+  <el-tabs v-model="activeName" @tab-click="handleClick">
+    <el-tab-pane label="自助建表" name="first">
+
+    <el-row style="margin-right: 30px">
+          <el-form :model="form_data" :rules="rules" ref="form_data" size="small" label-width="60px" style="margin-right: 30px">
+             <el-row>
+              <el-col :span="12" style="width:30%" >
+              <el-form-item prop="name" label="表名:" :error="String(errors.name?errors.name:'')" >
+                  <!--<el-input v-model="form_data.name"></el-input>-->
+                  <el-autocomplete
+                      class="inline-input"
+                      v-model="form_data.name"
+                      :fetch-suggestions="querySearch"
+                      placeholder="请输入表中文名"
+                      :trigger-on-focus="false"
+                      @select="handleSelect"
+                   ></el-autocomplete>
+              </el-form-item>
+              </el-col>
+    
+              <el-col :span="12" style="width:70%" >
+              <el-form-item prop="readme" label="自诉:" :error="String(errors.readme?errors.readme:'')">
+                  <el-input v-model="form_data.readme"></el-input>
+              </el-form-item>
+              </el-col>
+             </el-row>
+              <el-form-item label = "字段" size="small" 
+                  v-for="(item, index) in form_data.fields"
+                  :key="index" 
+                  :prop="'fields.'+index+'.name'"
+                  :inline="true"
+                  :rules="{ required: true, message: '字段不能为空', trigger: 'blur' }"
+              >
+                <!--<el-input v-model="item.name" placeholder="字段名" style="width:150px"></el-input> -->
+                <el-autocomplete
+                   class="inline-input"
+                   v-model="item.name"
+                   :fetch-suggestions="querySearch"
+                   placeholder="字段名"
+                   :trigger-on-focus="false"
+                   @select="handleSelect"
+                   style="width:150px"
+                ></el-autocomplete>
+    
+    
+                <el-select v-model="item.type" placeholder="选择类型" style="width:100px">
+                      <el-option label="字符串" :value="0"></el-option>
+                      <el-option label="整数" :value="1"></el-option>
+                      <el-option label="浮点数" :value="2"></el-option>
+                      <el-option label="日期时间" :value="3"></el-option>
+                      <el-option label="日期" :value="4"></el-option>
+                      <el-option label="布尔" :value="5"></el-option>
+                </el-select>
+                <el-input v-model="item.length" placeholder="长度:60 或 20,2" style="width:125px"></el-input>
+                <el-checkbox v-model="item.required" :disabled="item.is_pk" style="margin: 0px 0px 0px 10px">必填</el-checkbox>
+                <el-checkbox v-model="item.is_pk" @change="handleCheckedPKChange(item.is_pk,item)" style="margin: 0px 10px 0px 10px">主键</el-checkbox>
+                <el-input v-model="item.readme" placeholder="码值描述" style="width:150px"></el-input>
+                <el-button size="mini" type="primary" style="margin: 0px 5px" icon="el-icon-plus" @click="on_add_field(item, index)"></el-button>
+                <el-button size="mini" type="danger" style="margin: 0px 2px" icon="el-icon-delete" @click="on_delete_filed(item, index)"></el-button>
+            </el-form-item>
+            <div v-show="form_data.fields.length==0">
+              <el-button size="mini" type="primary" style="margin: 10px 60px" icon="el-icon-plus" @click="on_add_field({}, 0)">添加字段</el-button>
+            </div>
+           <el-button size="small" style = "width: 50%;margin-left:30px" type="primary" :loading="loading" @click="submitForm('form_data')">提交</el-button>
+           <el-button size = "small" style = "width:15%" @click="resetForm('form_data')">重置</el-button>
+           <el-button size = "small" type = "success"  style = "width:25%; margin-right:0px" @click="copySQL">复制SQL</el-button>
+        </el-form>
+      <br>
+      <el-input id = "result" type="textarea" :rows="15" placeholder="此处显示建表语句" v-model="create_tb_sql"
+      style = "width: 90%;margin-left:30px" spellcheck="false" > </el-input>
+    </el-row>
+
+    </el-tab-pane>
+    <el-tab-pane label="标准查询" name="second">
+
+        <el-form :inline="true" :rules="rules" :model="formInline" ref = "formInline" @submit.native.prevent size="small" label-width="120px" style="margin-right: 30px">
+          <el-form-item label="" prop="cn_name" style="margin-left:10px" >
+                <el-autocomplete
+                   @select="onSearch_std_dict(1)"
+                   class="inline-input"
+                   v-model="formInline.cn_name"
+                   :fetch-suggestions="querySearch"
+                   placeholder="请输入要查询的中文词"
+                   :trigger-on-focus="false"
+                   @select="handleSelect"
+                   style="width:680px"
+  
+                ></el-autocomplete>
+ 
+          </el-form-item>
+          <el-form-item>
+            <el-button type="primary" style = "width:100px" @click="onSearch_std_dict(1)">查询</el-button>
+          </el-form-item>
+          <el-form-item>
+            <el-button type="success" style = "width:100px" @click="handleAddStd">新增</el-button>
+          </el-form-item>
+        </el-form>
+        
+
+
+      <el-dialog title="编辑标准" :visible.sync="dialogFormVisible">
+         <el-form :model="form_edit_std" :rules="rules" ref="form_edit_std" size="small" label-width="120px" >
+           <el-form-item label="中文词条" prop = "attribute_ch_name">
+             <el-input v-model="form_edit_std.attribute_ch_name" autocomplete="off" :disabled = "is_update"></el-input>
+           </el-form-item>
+           <el-form-item label="代码" prop= "attribute_code">
+             <el-input v-model="form_edit_std.attribute_code" autocomplete="off"></el-input>
+           </el-form-item>
+           <el-form-item label="英文全称" prop = "attribute_en_name" >
+             <el-input v-model="form_edit_std.attribute_en_name" autocomplete="off"></el-input>
+           </el-form-item>
+           <el-form-item label="中文描述" prop = "attribute_ch_desc" >
+             <el-input v-model="form_edit_std.attribute_ch_desc" autocomplete="off"></el-input>
+           </el-form-item>
+           <el-form-item label="值域（码值）" prop = "attribute_val_dmn">
+             <el-input v-model="form_edit_std.attribute_val_dmn" autocomplete="off" placeholder="请使用json字符串"></el-input>
+           </el-form-item>
+
+         </el-form>
+         <div slot="footer" class="dialog-footer">
+           <el-button size="mini" @click="dialogFormVisible = false">取 消</el-button>
+           <el-button size="mini" @click="resetForm('form_edit_std')">重 置</el-button>
+           <el-button type="warning" size="mini" :loading="loading" @click="submitForm('form_edit_std')">提 交</el-button>
+         </div>
+       </el-dialog>
+
+
+
+        <el-table
+            :data="std_dict_data.results"
+            stripe
+            height="530px"
+            border
+            style="width: 100%"
+            @row-dblclick="handleRowDbclick">
+
+            <el-table-column
+              prop="attribute_ch_name"
+              label="中文词条"
+              width="180">
+            </el-table-column>
+            <el-table-column
+              prop="attribute_code"
+              label="代码"
+              width="180">
+            </el-table-column>
+            <el-table-column
+              prop="attribute_en_name"
+              label="英文全称">
+            </el-table-column>
+            <el-table-column
+              prop="attribute_ch_desc"
+              label="中文描述">
+            </el-table-column>
+            <el-table-column
+              prop="attribute_val_dmn"
+              label="值域描述"
+              style="width:600px">
+            </el-table-column>
+<!--
+            <el-table-column label="操作">
+              <template slot-scope="scope">
+                <el-button size="mini" @click="handleEdit(scope.$index, scope.row)">编辑</el-button>
+                <el-button size="mini" type="danger" @click="handleDelete(scope.$index, scope.row)">删除</el-button>
+              </template>
+            </el-table-column>
+-->
+        </el-table>
+
+
+
+
+        <el-pagination
+          @current-change="handleCurrentChange"
+          small
+          layout="prev, pager, next"
+          :total="std_dict_data.count"
+          style = "text-align:center"        
+          >
+
+        </el-pagination>
+
+    </el-tab-pane>
+  </el-tabs>
+
+
+
+
+
+</template>
+<script>
+
+ new Vue({
+  el: "#app",
+  data: function() {
+    return {
+      activeName: 'first',
+      is_visible: true,
+      loading: false,
+      formInline: {
+          cn_name: '',
+      },
+      dialogFormVisible: false,
+      std_dict_data: [{}],
+      is_update : false,
+      form_edit_std : {attribute_ch_name:'',attribute_code:'',attribute_en_name:'',attribute_ch_desc:'',attribute_val_dmn:'',create_user:1},
+      form_data:
+          {
+            name: "机构信息表",
+            readme: "",
+            fields: [
+              {
+                name: "机构码",
+                length: "9",
+                type: 0,
+                readme: "",
+                is_pk: true,
+                required: true, 
+              },
+              {
+                name: "机构中文名称",
+                length: "60",
+                type: 0,
+                readme: "",
+                is_pk: false,
+                required: false, 
+              },
+              {
+                name: "机构英文名称",
+                length: "70",
+                type: 0,
+                readme: "",
+                is_pk: false,
+                required: false, 
+              },
+              {
+                name: "机构简称",
+                length: "10",
+                type: 0,
+                readme: "",
+                is_pk: false,
+                required: false, 
+              },
+              {
+                name: "备付金额度",
+                length: "16,2",
+                type: 2,
+                readme: "",
+                is_pk: false,
+                required: false, 
+              },
+
+
+
+
+            ]
+          },
+      create_tb_sql: '',
+      errors: {},
+      rules:{
+         name: [
+            { required: true, message: '请输入中文表名', trigger: 'blur' },
+            { min: 3, max: 15, message: '长度在 3 到 15 个字符', trigger: 'blur' }
+         ],
+         fields: [
+            { type: 'array', required: true, message: '请至少选择一个活动性质', trigger: 'change' }
+         ],
+         cn_name: [
+            { required: true, message: '请输入中文词条', trigger: 'blur' },
+         ],
+         attribute_ch_name: [
+            { required: true, message: '请输入中文词条名', trigger: 'blur' },
+         ],
+         attribute_code: [
+            { required: true, message: '请输入词条代码', trigger: 'blur' },
+         ],
+         attribute_en_name: [
+            { required: true, message: '请输入英文全称', trigger: 'blur' },
+         ],
+      }
+    };
+  },
+  props: ["is_create", "data"],
+  mounted() {
+    // this.data.fields.push({"id":121,"name":"xxxxx","alias":null,"readme":"","type":0,"is_pk":false,"required":true})
+  },
+  methods: {
+    on_close() {
+      this.$el.parentNode.removeChild(this.$el);
+      this.$destroy();
+    },
+    on_add_field(item, index) {
+      this.form_data.fields.splice(index + 1, 0, {
+        // id: Math.floor(Math.random() * 10000000 + 10000000),
+        name: "",
+        length: "",
+        readme: "",
+        type: 0,
+        is_pk: false,
+        required: false
+      });
+      if (!this.errors.fields) {
+        return;
+      }
+      this.errors.fields.splice(index + 1, 0, {});
+    },
+    on_delete_filed(field, index) {
+      //console.log("this.from_data:", this.form_data);
+      this.form_data.fields.splice(index, 1);
+      // if (JSON.stringify(this.errors) == "{}" && !this.errors.fields) {
+      //   return;
+      // }
+      if (this.errors.fields) {
+        this.errors.fields.splice(index, 1);
+      }
+    },
+    handleCheckedPKChange(val,item){
+      //console.log(val,item);
+      if (val){ item.required = val};
+      //this.form_data.fields.required = val;
+    },
+    copySQL(){
+         if (this.create_tb_sql === ''){return};
+         var sql_text = document.getElementById("result");
+         sql_text.select();
+         document.execCommand("Copy");
+         this.$message.success("已复制好，可贴粘。");
+    },
+    handleClick(tab, event) {
+        //console.log(tab, event);
+    },
+    resetForm(formName) {
+        
+        //console.log(formName);
+        this.$refs[formName].resetFields();
+        if (formName === 'form_data') {
+        this.form_data.name = '';
+        this.form_data.readme = '';
+        for (var k in this.form_data.fields){
+         //console.log(k);
+         this.form_data.fields[k].name= "";
+         this.form_data.fields[k].length = "";
+         this.form_data.fields[k].type= "";
+         this.form_data.fields[k].readme = "";
+         this.form_data.fields[k].is_pk = false;
+         this.form_data.fields[k].required = false;
+         }
+        };
+        //if (formName === 'form_edit_std') {
+        //};
+    },
+      submitForm(formName) {
+        this.$refs[formName].validate((valid) => {
+          if (valid) {
+            //alert('submit!');
+              if (formName === 'form_data') { this.on_submit() };
+              if (formName === 'form_edit_std') { this.handle_edit_std () };
+          } else {
+            console.log('error submit!!');
+            return false;
+          }
+        });
+      },
+
+
+      querySearch(queryString, cb) {
+        // 调用 callback 返回建议列表的数据
+        results = [{}];
+        paras = {kw: queryString, format:'json'};
+        axios.get("{% url 'data_standard:standard_dict' %}",{params:paras})
+        .then(response => {
+             console.log(response);
+             console.log(response.data);
+             var data = response.data['results'];
+             console.log(data)
+             for (let i of data){
+                if (queryString.length > 2 && queryString[queryString.length-1] === i.attribute_ch_name[0]){
+                  results.push({'value':queryString + i.attribute_ch_name.substring(1)});
+                }
+                else {
+                  results.push({'value':i.attribute_ch_name});
+                }
+             }
+            });
+        //console.log(results);
+        cb(results);
+      },
+      handleSelect(item) {
+        //console.log(item);
+      },
+ 
+      handleEdit(index, row) {
+        //console.log(index, row);
+      },
+      handleAddStd() { 
+          this.form_edit_std.attribute_ch_desc = '';
+          this.form_edit_std.attribute_ch_name = '';
+          this.form_edit_std.attribute_code = '';
+          this.form_edit_std.attribute_en_name = '';
+          this.form_edit_std.attribute_val_dmn = '';
+          this.is_update = false;
+          this.dialogFormVisible = true;
+      },
+      handleRowDbclick(row,column,event) {
+          //console.log(row) ;
+          this.form_edit_std.attribute_ch_desc = row.attribute_ch_desc;
+          this.form_edit_std.attribute_ch_name = row.attribute_ch_name;
+          this.form_edit_std.attribute_code = row.attribute_code;
+          this.form_edit_std.attribute_en_name = row.attribute_en_name;
+          this.form_edit_std.attribute_val_dmn = row.attribute_val_dmn;
+          this.is_update = true;
+          this.dialogFormVisible = true;
+       
+      },
+
+
+      handle_edit_std() {
+      this.loading = true;
+      let regex = /.*csrftoken=([^;.]*).*$/;
+      csrftoken = document.cookie.match(regex) === null ? null: document.cookie.match(regex)[1];
+      if (this.is_update) {
+      putUrl = "{% url 'data_standard:standard_dict' %}"+this.form_edit_std.attribute_ch_name+'/';
+      axios.put(putUrl,this.form_edit_std,{headers: {"X-CSRFToken": csrftoken}},)
+        .then(response => {
+          this.loading = false;
+          this.$message.success("提交成功");
+          //console.log("reponse.data")
+          //console.log(response);
+          this.errors = {};
+          this.dialogFormVisible = false;
+        })
+        .catch(error => {
+          this.loading = false;
+          this.$message.error("提交失败，请查看日志");
+        });
+       }else{
+        axios.post("{% url 'data_standard:standard_dict' %}",this.form_edit_std, {headers: {"X-CSRFToken": csrftoken}})
+        .then(response => {
+          this.loading = false;
+          this.$message.success("提交成功");
+          //console.log("reponse.data");
+          console.log(response);
+          this.errors = {};
+          this.dialogFormVisible = false;
+        })
+        .catch(error => {
+          this.loading = false;
+          this.$message.error("提交失败，请查看日志");
+        });
+      };
+     },
+
+      on_submit(){ 
+        this.loading = true;
+        let regex = /.*csrftoken=([^;.]*).*$/;
+        csrftoken = document.cookie.match(regex) === null ? null: document.cookie.match(regex)[1];
+        axios.post("{% url 'data_standard:sql' %}",this.form_data, {headers: {"X-CSRFToken": csrftoken}})
+          .then(response => {
+            this.loading = false;
+            this.$message.success("提交成功 请复制SQL语句");
+            //console.log("reponse.data")
+            //console.log(response)
+            this.create_tb_sql = response.data.sql;
+            this.errors = {};
+          })
+          .catch(error => {
+            this.loading = false;
+          });
+      },
+
+      handleCurrentChange(val) {
+        //console.log(`当前页: ${val}`);
+        this.onSearch_std_dict(val);
+      },
+
+
+      onSearch_std_dict(page_num){
+       this.$refs["formInline"].validate((valid) => {
+          if (valid) {
+            //alert('submit!');
+
+              paras = {kw: this.formInline.cn_name, format:'json'};
+              //console.log(page_num);
+              if(page_num){
+                  paras = {kw: this.formInline.cn_name, page:page_num,format:'json'};
+              }
+              axios.get("{% url 'data_standard:standard_dict' %}",{params:paras})
+              .then(response => {
+                   
+                   //console.log(response.data);
+                   //this.std_dict_data = response.data['results'];
+                   this.std_dict_data = response.data;
+                   
+                });
+
+          } else {
+            //console.log('error submit!!');
+            return false;
+          }
+        });
+       },
+    }
+});
+</script>
+</body>
+</html>
