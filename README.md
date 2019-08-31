@@ -5,6 +5,10 @@
 1. 添加或修改数据标准，包含数据项的中文描述，英文代码，英文全称，码值说明。
 2. 根据提供的中文字段名，利用 jieba 分词，自动检索数据标准，据数据标准生成符合标准的建表语句。
 
+## 界面展示：
+
+![界面](./datastandard.gif)
+
 ## 采用的技术栈：
 1. 后端：Django, Django rest framework，jieba
 2. 前段: Vue,  Element-ui, axios 
