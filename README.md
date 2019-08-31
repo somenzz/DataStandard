@@ -7,7 +7,7 @@
 
 ## 界面展示：
 
-![界面](./datastandard.gif)
+![界面](datastandard.gif)
 
 ## 采用的技术栈：
 1. 后端：Django, Django rest framework，jieba
@@ -38,5 +38,6 @@ python manage.py createsuperuser
 ## 与我一起交流 Python ：
 
 微信号: somenzz
+
 关注微信公众号： somenzz
 
