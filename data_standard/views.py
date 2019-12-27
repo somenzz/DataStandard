@@ -11,6 +11,10 @@ from rest_framework.response import Response
 from django.db.models.functions import Length
 import jieba
 
+# api 文档
+
+from rest_framework.schemas import AutoSchema
+
 
 ## 增加一些自定义的词组
 with open("userdict.txt","r",encoding='utf-8') as r:

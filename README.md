@@ -53,5 +53,5 @@ python manage.py createsuperuser
 
 微信号: somenzz
 
-关注微信公众号： somenzz
+关注微信公众号：Python七号
 
